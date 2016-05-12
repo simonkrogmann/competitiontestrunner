@@ -82,7 +82,7 @@ std::string prepareAndGetRunCommand(Language language, Run run,
 {
     if (language.compiled)
     {
-        const std::string cmp = source + "." + run.name + ".cmp";
+        const std::string cmp = "./" + source + "." + run.name + ".cmp";
         if (!alreadyBuilt(cmp, source))
         {
             const auto compile_command =
@@ -96,7 +96,7 @@ std::string prepareAndGetRunCommand(Language language, Run run,
 
 int main(int argc, char *argv[])
 {
-    util::Config config{"simonkrogmann", "test-runner"};
+    util::Config config{"simonkrogmann", "competitiontestrunner"};
     config.setDefaults({
         {"filename", ""},
     });

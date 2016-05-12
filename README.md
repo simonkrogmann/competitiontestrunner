@@ -1,1 +1,1 @@
-# competition-test-runner
+# competitiontestrunner
