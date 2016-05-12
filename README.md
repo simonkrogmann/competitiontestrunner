@@ -1,6 +1,6 @@
 # competitiontestrunner
 
-# Supported languages
+## Supported languages
 * C++
 * Python
 
