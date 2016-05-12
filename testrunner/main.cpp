@@ -153,6 +153,8 @@ int main(int argc, char *argv[])
         }
         runtimes[run.name] = result.runtime;
     }
+    std::cout << "Small test case needed " << runtimes["perf"] << "s."
+              << std::endl;
 
     if (util::fileExists(generate))
     {
@@ -180,10 +182,5 @@ int main(int argc, char *argv[])
                           << std::endl;
             }
         }
-    }
-    else
-    {
-        std::cout << "Small test case needed " << runtimes["perf"] << "s."
-                  << std::endl;
     }
 }

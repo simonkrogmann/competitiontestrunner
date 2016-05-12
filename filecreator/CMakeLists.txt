@@ -7,8 +7,10 @@ set(sources
 set(includes)
 
 set(resources
-    template/template.cpp
-    template/template.py
+    resource/generate.py
+
+    resource/template.cpp
+    resource/template.py
 )
 
 set(libraries
