@@ -1,6 +1,6 @@
+#include <chrono>
 #include <iostream>
 #include <string>
-#include <chrono>
 
 #include <utilgpu/cpp/file.h>
 #include <utilgpu/cpp/str.h>
@@ -21,20 +21,12 @@ struct RunResult
     double runtime;
 };
 
-void requireFileExists(const std::string &filename)
-{
-    if (!util::fileExists(filename))
-    {
-        std::cout << filename << " does not exist" << std::endl;
-        exit(1);
-    }
-}
-
-void diff(const std::string &actual, const std::string &expected)
+void diff(const util::File &actual, const util::File &expected)
 {
     std::cout << "============ Actual ============" << std::endl
-              << actual << "=========== Expected ===========" << std::endl
-              << expected;
+              << actual.content()
+              << "=========== Expected ===========" << std::endl
+              << expected.content();
 }
 
 int runProgram(const std::string &command)
@@ -42,14 +34,12 @@ int runProgram(const std::string &command)
     return system(command.c_str());
 }
 
-bool alreadyBuilt(std::string artifact, std::string source)
+bool alreadyBuilt(const util::File &artifact, const util::File &source)
 {
-    return util::File(artifact).exists() &&
-           util::File(artifact).timeStamp() > util::File(source).timeStamp();
+    return artifact.exists() && artifact.timeStamp() > source.timeStamp();
 }
 
-void exitOnErrorReturnValue(const int &returnValue,
-                            const std::string &message = "")
+void exitOnError(const int &returnValue, const std::string &message = "")
 {
     if (returnValue)
     {
@@ -61,11 +51,16 @@ void exitOnErrorReturnValue(const int &returnValue,
     }
 }
 
+void exitOnError(const RunResult &result, const std::string &message = "")
+{
+    exitOnError(result.returnValue, message);
+}
+
 void runProgramExitOnError(const std::string &command,
                            const std::string &message = "")
 {
     const auto returnValue = runProgram(command);
-    exitOnErrorReturnValue(returnValue, message);
+    exitOnError(returnValue, message);
 }
 
 RunResult measure(const std::string &command)
@@ -77,21 +72,94 @@ RunResult measure(const std::string &command)
     return {returnValue, duration.count()};
 }
 
-std::string prepareAndGetRunCommand(Language language, Run run,
-                                    std::string source)
+std::string prepareAndGetRunCommand(const Language &language, const Run &run,
+                                    const util::File &source)
 {
     if (language.compiled)
     {
-        const std::string cmp = "./" + source + "." + run.name + ".cmp";
+        const util::File cmp{"./" + source.path + "." + run.name + ".cmp"};
         if (!alreadyBuilt(cmp, source))
         {
             const auto compile_command =
-                run.command + " " + source + " -o " + cmp;
+                run.command + " " + source.path + " -o " + cmp.path;
             runProgramExitOnError(compile_command);
         }
-        return cmp;
+        return cmp.path;
     }
-    return run.command + source;
+    return run.command + source.path;
+}
+
+void prepare(const util::File &source, const Language &language)
+{
+    for (const auto &preparation_command : language.preparationCommands)
+    {
+        runProgramExitOnError(preparation_command + source.path);
+    }
+}
+
+void test(const std::string &name, const std::string &extension)
+{
+    auto &language = languages[extension];
+    const util::File source{name + "." + extension};
+    const util::File out{name + ".out"};
+    const util::File ref{name + ".ref"};
+    const util::File in{name + ".in"};
+    const util::File generate{name + ".test.py"};
+    const util::File largeIn{name + ".large.in"};
+
+    source.requireExists();
+    prepare(source, language);
+
+    // small test cases
+    std::map<std::string, double> runtimes;
+    in.requireExists();
+    ref.requireExists();
+    for (const auto &run : language.runs)
+    {
+        const auto command = prepareAndGetRunCommand(language, run, source) +
+                             " < " + in.path + " > " + out.path;
+        const auto result = measure(command);
+        exitOnError(result, "Program exited with " +
+                                std::to_string(result.returnValue));
+        out.requireExists();
+        if (!out.contentEquals(ref))
+        {
+            std::cout << "Test failed on run " << run.name << ":" << std::endl;
+            diff(out, ref);
+            exit(4);
+        }
+        runtimes[run.name] = result.runtime;
+    }
+    std::cout << "Small test case needed " << runtimes["perf"] << "s."
+              << std::endl;
+
+    // large generated test cases
+    if (generate.exists())
+    {
+        if (!alreadyBuilt(largeIn, generate))
+        {
+            const std::string generateCommand =
+                "python " + generate.path + " > " + largeIn.path;
+            runProgramExitOnError(generateCommand,
+                                  "Error during large test case creation.");
+        }
+        largeIn.requireExists();
+        for (const auto &run : language.runs)
+        {
+            const auto runCommand =
+                prepareAndGetRunCommand(language, run, source) + " < " +
+                largeIn.path + " > /dev/null";
+            const auto result = measure(runCommand);
+            exitOnError(result, "Program exited with " +
+                                    std::to_string(result.returnValue) +
+                                    " on large run.");
+            if (run.name == "perf")
+            {
+                std::cout << "Large test case needed " << result.runtime << "s."
+                          << std::endl;
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -111,76 +179,13 @@ int main(int argc, char *argv[])
         std::cout << "Missing filename" << std::endl;
         exit(3);
     }
-    requireFileExists(name);
-    auto extension = util::stripWhitespace(util::loadFile(name));
+    util::File info{name};
+    info.requireExists();
+    auto extension = util::stripWhitespace(info.content());
     if (languages.find(extension) == languages.end())
     {
         std::cout << "Language not supported" << std::endl;
         exit(5);
     }
-    auto &language = languages[extension];
-    const std::string source = name + "." + extension;
-    const std::string out = name + ".out";
-    const std::string ref = name + ".ref";
-    const std::string in = name + ".in";
-    const std::string generate = name + ".test.py";
-    const std::string largeIn = name + ".large.in";
-
-    std::map<std::string, double> runtimes;
-    requireFileExists(source);
-    requireFileExists(in);
-    for (const auto &preparation_command : language.preparationCommands)
-    {
-        runProgramExitOnError(preparation_command + source);
-    }
-    for (const auto &run : language.runs)
-    {
-        const auto command = prepareAndGetRunCommand(language, run, source) +
-                             " < " + in + " > " + out;
-        const auto result = measure(command);
-        exitOnErrorReturnValue(
-            result.returnValue,
-            "Program exited with " + std::to_string(result.returnValue));
-        requireFileExists(out);
-        requireFileExists(ref);
-        const auto output = util::loadFile(out);
-        const auto reference = util::loadFile(ref);
-        if (output != reference)
-        {
-            std::cout << "Test failed on run " << run.name << ":" << std::endl;
-            diff(output, reference);
-            exit(4);
-        }
-        runtimes[run.name] = result.runtime;
-    }
-    std::cout << "Small test case needed " << runtimes["perf"] << "s."
-              << std::endl;
-
-    if (util::fileExists(generate))
-    {
-        if (!alreadyBuilt(largeIn, generate))
-        {
-            const std::string generateCommand =
-                "python " + generate + " > " + largeIn;
-            runProgramExitOnError(generateCommand,
-                                  "Error during large test case creation.");
-        }
-        requireFileExists(largeIn);
-        for (const auto &run : language.runs)
-        {
-            const auto runCommand =
-                prepareAndGetRunCommand(language, run, source) + " < " +
-                largeIn + " > /dev/null";
-            const auto result = measure(runCommand);
-            exitOnErrorReturnValue(result.returnValue,
-                                   "Program exited with " +
-                                       std::to_string(result.returnValue) +
-                                       " on large run.");
-            if (run.name == "perf")
-            {
-                std::cout << "Large test case needed " << result.runtime << "s."
-                          << std::endl;
-            }
-        }
-    }
+    test(name, extension);
 }
