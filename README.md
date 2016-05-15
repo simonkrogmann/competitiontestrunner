@@ -1,4 +1,4 @@
-# competitiontestrunner
+# competitiontestrunner [![Build Status](https://travis-ci.org/simonkrogmann/competitiontestrunner.svg?branch=master)](https://travis-ci.org/simonkrogmann/competitiontestrunner)
 
 ## Supported languages
 * C++
