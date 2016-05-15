@@ -77,11 +77,11 @@ std::string prepareAndGetRunCommand(const Language &language, const Run &run,
 {
     if (language.compiled)
     {
-        const util::File cmp{"./" + source.path + "." + run.name + ".cmp"};
+        const util::File cmp{util::format("./@.@.cmp", source.path, run.name)};
         if (!alreadyBuilt(cmp, source))
         {
             const auto compile_command =
-                run.command + " " + source.path + " -o " + cmp.path;
+                util::format("@ @ -o @", run.command, source.path, cmp.path);
             runProgramExitOnError(compile_command);
         }
         return cmp.path;
@@ -116,21 +116,23 @@ void test(const std::string &name, const std::string &extension)
     ref.requireExists();
     for (const auto &run : language.runs)
     {
-        const auto command = prepareAndGetRunCommand(language, run, source) +
-                             " < " + in.path + " > " + out.path;
+        const auto command = util::format(
+            "@ < @ > @", prepareAndGetRunCommand(language, run, source),
+            in.path, out.path);
         const auto result = measure(command);
-        exitOnError(result, "Program exited with " +
-                                std::to_string(result.returnValue));
+        exitOnError(result,
+                    util::format("Program exited with @", result.returnValue));
         out.requireExists();
         if (!out.contentEquals(ref))
         {
-            std::cout << "Test failed on run " << run.name << ":" << std::endl;
+            std::cout << util::format("Test failed on run @:", run.name)
+                      << std::endl;
             diff(out, ref);
             exit(4);
         }
         runtimes[run.name] = result.runtime;
     }
-    std::cout << "Small test case needed " << runtimes["perf"] << "s."
+    std::cout << util::format("Small test case needed @s.", runtimes["perf"])
               << std::endl;
 
     // large generated test cases
@@ -138,24 +140,25 @@ void test(const std::string &name, const std::string &extension)
     {
         if (!alreadyBuilt(largeIn, generate))
         {
-            const std::string generateCommand =
-                "python " + generate.path + " > " + largeIn.path;
+            const auto generateCommand =
+                util::format("python @ > @", generate.path, largeIn.path);
             runProgramExitOnError(generateCommand,
                                   "Error during large test case creation.");
         }
         largeIn.requireExists();
         for (const auto &run : language.runs)
         {
-            const auto runCommand =
-                prepareAndGetRunCommand(language, run, source) + " < " +
-                largeIn.path + " > /dev/null";
+            const auto runCommand = util::format(
+                "@ < @ > /dev/null",
+                prepareAndGetRunCommand(language, run, source), largeIn.path);
             const auto result = measure(runCommand);
-            exitOnError(result, "Program exited with " +
-                                    std::to_string(result.returnValue) +
-                                    " on large run.");
+            exitOnError(result,
+                        util::format("Program exited with @ on large run.",
+                                     result.returnValue));
             if (run.name == "perf")
             {
-                std::cout << "Large test case needed " << result.runtime << "s."
+                std::cout << util::format("Large test case needed @s.",
+                                          result.runtime)
                           << std::endl;
             }
         }

@@ -14,7 +14,6 @@ addons:
       - gcc-5
       - cppcheck
       - qtbase5-dev
-      - libqt5opengl5-dev
 install:
   - mkdir build && cd build
   - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
@@ -23,6 +22,6 @@ install:
   - make && sudo make install
   - cd ../..
 before_script:
-  - cppcheck ../source
+  - cppcheck ../testrunner ../filecreator
 script:
   - cmake .. && make && make test
