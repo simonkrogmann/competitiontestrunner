@@ -96,7 +96,7 @@ void prepare(const util::File &source, const Language &language)
     }
 }
 
-void test(const std::string &name, const std::string &extension)
+void test(const std::string &name, const std::string &extension, bool force)
 {
     auto &language = languages[extension];
     const util::File source{name + "." + extension};
@@ -127,7 +127,8 @@ void test(const std::string &name, const std::string &extension)
             std::cout << util::format("Test failed on run @:", run.name)
                       << std::endl;
             diff(out, ref);
-            exit(4);
+            if (!force)
+                exit(4);
         }
         runtimes[run.name] = result.runtime;
     }
@@ -170,11 +171,26 @@ int main(int argc, char *argv[])
     config.setDefaults({
         {"filename", ""},
     });
+    auto force = false;
     auto name = config.value("filename");
-    if (argc == 2)
+    bool nameFound = false;
+    for (int i = 1; i < argc; ++i)
     {
-        name = argv[1];
-        config.setValue("filename", name);
+        if (argv[i] == std::string("--force"))
+        {
+            force = true;
+        }
+        else if (nameFound)
+        {
+            std::cout << "Too many arguments" << std::endl;
+            exit(6);
+        }
+        else
+        {
+            nameFound = true;
+            name = argv[i];
+            config.setValue("filename", name);
+        }
     }
     if (name == "")
     {
@@ -189,5 +205,5 @@ int main(int argc, char *argv[])
         std::cout << "Language not supported" << std::endl;
         exit(5);
     }
-    test(name, extension);
+    test(name, extension, force);
 }
