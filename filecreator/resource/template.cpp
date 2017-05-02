@@ -3,7 +3,7 @@
 
 void solveTestCase();
 
-int main(int argc, char* argv[])
+int main()
 {
     std::ios::sync_with_stdio(false);
     unsigned int testCases = 0;
@@ -19,5 +19,5 @@ void solveTestCase()
     long long testCase;
     std::cin >> testCase;
     auto result = compute(testCase);
-    std::cout << result << std::endl;
+    std::cout << result << "\n";
 }

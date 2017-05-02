@@ -21,17 +21,14 @@ struct RunResult
     double runtime;
 };
 
-void diff(const util::File &actual, const util::File &expected)
-{
-    std::cout << "============ Actual ============" << std::endl
-              << actual.content()
-              << "=========== Expected ===========" << std::endl
-              << expected.content();
-}
-
 int runProgram(const std::string &command)
 {
     return system(command.c_str());
+}
+
+void diff(const util::File &actual, const util::File &expected)
+{
+    util::format("diff @ @", actual.path, expected.path);
 }
 
 bool alreadyBuilt(const util::File &artifact, const util::File &source)

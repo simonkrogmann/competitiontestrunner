@@ -20,11 +20,11 @@ std::map<std::string, Language> languages{
      {true,
       {
           {"gcc",
-           "g++ -g -std=c++11 -pedantic -Wall -Wextra -fsanitize=undefined"},
+           "g++ -g -std=c++14 -pedantic -Wall -Wextra -fsanitize=undefined"},
           {"clang",
-           "clang++ -std=c++11 -pedantic -Wall -Wextra -fsanitize=integer "
+           "clang++ -std=c++14 -pedantic -Wall -Wextra -fsanitize=integer "
            "-fsanitize=undefined"},
-          {"perf", "g++ -std=c++11 -pedantic -Wall -Wextra -O2 "},
+          {"perf", "g++ -std=c++14 -pedantic -Wall -Wextra -O2 "},
       },
       {"clang-format -i ", "cppcheck "}}},
     {"py",
