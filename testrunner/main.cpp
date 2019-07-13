@@ -29,7 +29,7 @@ int runProgram(const std::string &command)
 void diff(const util::File &actual, const util::File &expected)
 {
     const auto command =
-        util::format("diff @ @  -u2 --color", actual.path, expected.path);
+        util::format("diff @ @ -u2 --color", actual.path, expected.path);
     runProgram(command);
 }
 
